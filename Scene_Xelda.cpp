@@ -70,6 +70,31 @@ void Scene_Xelda::loadLevel(const std::string& filename)
             std::cout << animName << ": " << pos.x << "," << pos.y << std::endl;
             
         }
+        if (temp == "NPC")
+        {
+            std::cout << "NPC" << std::endl;
+
+            std::string animName, typeAI;
+            int roomX, roomY, gridX, gridY, health, damage;
+            bool blockMove, blockVision;
+
+            fin >> animName
+                >> roomX >> roomY               // Room coordinates (room units = windowWidth x windowHeight)
+                >> gridX >> gridY               // Grid number from room top left (grid unit = 64x64px)
+                >> blockMove >> blockVision     // Blocks movement, blocks vision
+                >> health >> damage;            // Max/starting health, damage to player
+            
+            auto enemy = m_entityManager.addEntity("enemy");
+
+            enemy->addComponent<CAnimation>(m_game->assets().getAnimation(animName), true);
+            enemy->addComponent<CBoundingBox>(enemy->getComponent<CAnimation>().animation.getSize(), blockMove, blockVision);
+            enemy->addComponent<CTransform>(getPosition(roomX, roomY, gridX, gridY, enemy));
+            enemy->addComponent<CHealth>(health);
+            enemy->addComponent<CDamage>(damage);
+
+            Vec2 pos = getPosition(roomX, roomY, gridX, gridY, enemy);
+            std::cout << animName << " @ " << pos.x << "," << pos.y << std::endl;
+        }
     }
 }
 
@@ -79,7 +104,7 @@ Vec2 Scene_Xelda::getPosition(int rx, int ry, int tx, int ty, std::shared_ptr<En
     Vec2 entitySize = entity->getComponent<CAnimation>().animation.getSize();
     Vec2 halfSize = entitySize / 2;
 
-    Vec2 room = Vec2(window.x * rx, window.y * ry);
+    Vec2 room = Vec2((float)window.x * (float)rx, (float)window.y * (float)ry);
     Vec2 tileSize = Vec2((tx * entitySize.x) + halfSize.x, (ty * entitySize.y) + halfSize.y);
 
     return room + tileSize;
@@ -113,6 +138,7 @@ void Scene_Xelda::update()
         sMovement();
         sCollision();
         sLifespan();
+        sCamera();
         sAnimation();    
     }
     sRender();
@@ -125,7 +151,7 @@ void Scene_Xelda::sDoAction(const Action& action)
         // Gameplay and debugging actions
              if (action.name() == "TOGGLE_TEXTURE")     { m_drawTextures = !m_drawTextures; }
         else if (action.name() == "TOGGLE_COLLISION")   { m_drawCollision = !m_drawCollision; }
-        else if (action.name() == "TOGGLE_CAMERA")      { m_drawGrid = !m_drawGrid; }
+        else if (action.name() == "TOGGLE_CAMERA")      { m_follow = !m_follow; }
         else if (action.name() == "QUIT")               { onEnd(); }
         else if (action.name() == "PAUSE")              { setPaused(!m_paused); }
 
@@ -170,7 +196,6 @@ void Scene_Xelda::sMovement()
 
     // Update player position using velocity
     m_player->getComponent<CTransform>().pos += playerVelocity;
-    std::cout << m_player->getComponent<CTransform>().pos.x << "," << m_player->getComponent<CTransform>().pos.y << std::endl;
 }
 
 void Scene_Xelda::sCollision()
@@ -231,13 +256,41 @@ void Scene_Xelda::sAnimation()
 
 void Scene_Xelda::sCamera()
 {
+    auto currView = m_game->window().getView();
+    auto windowSize = m_game->window().getSize();
+    auto playerPos = m_player->getComponent<CTransform>().pos;
+    
+    if (m_follow)
+    {
+        sf::View view = sf::View(sf::Vector2f(playerPos.x, playerPos.y), sf::Vector2f(windowSize));
+        std::cout << "setting view: " << playerPos.x << "," << playerPos.y<< std::endl;
+        m_game->window().setView(view);
+        
+    }
+    else
+    {
+        sf::Vector2f viewSize = currView.getSize();
+        sf::Vector2f viewCenter = currView.getCenter();
 
+        // Calculate from center to each edge (Width/2 or Height/2)
+        float viewLeft   = viewCenter.x - (viewSize.x / 2); 
+        float viewRight  = viewCenter.x + (viewSize.x / 2);
+        float viewTop    = viewCenter.y - (viewSize.y / 2);
+        float viewBottom = viewCenter.y + (viewSize.y / 2);
+
+        // Check player position vs edge, then shift view by Width or Height
+             if (playerPos.x < viewLeft)    { currView.setCenter(viewCenter.x - viewSize.x, viewCenter.y); }
+        else if (playerPos.x > viewRight)   { currView.setCenter(viewCenter.x + viewSize.x, viewCenter.y); }
+        else if (playerPos.y < viewTop)     { currView.setCenter(viewCenter.x, viewCenter.y - viewSize.y); }
+        else if (playerPos.y > viewBottom)  { currView.setCenter(viewCenter.x, viewCenter.y + viewSize.y); }
+        m_game->window().setView(currView);
+    }
 }
 
 void Scene_Xelda::sRender()
 {
     // Clear the window to a blue
-    m_game->window().setView(m_game->window().getDefaultView());
+    //m_game->window().setView(m_game->window().getDefaultView());
     m_game->window().clear(sf::Color(255, 192, 122));
     
     // Entity rendering and animation
