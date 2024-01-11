@@ -1,0 +1,67 @@
+Texture   TexExplode    bin/images/misc/explosion128.png
+Texture   TexRunDown    bin/images/tloz/run_down.png              
+Texture   TexRunRight   bin/images/tloz/run_right.png
+Texture   TexRunUp      bin/images/tloz/run_up.png
+Texture   TexStandD     bin/images/tloz/stand_down.png              
+Texture   TexStandR     bin/images/tloz/stand_right.png
+Texture   TexStandU     bin/images/tloz/stand_up.png
+Texture   TexAtkDown    bin/images/tloz/attack_down.png
+Texture   TexAtkRight   bin/images/tloz/attack_right.png
+Texture   TexAtkUp      bin/images/tloz/attack_up.png
+Texture   TexSwordUp    bin/images/tloz/item_sword_up.png
+Texture   TexSwordRight bin/images/tloz/item_sword_right.png
+Texture   TexGet1       bin/images/tloz/get1.png
+Texture   TexGet2       bin/images/tloz/get2.png
+Texture   TexRockTL     bin/images/tloz/green/tile_rock_tl.png
+Texture   TexRockTM     bin/images/tloz/green/tile_rock_tm.png
+Texture   TexRockTR     bin/images/tloz/green/tile_rock_tr.png
+Texture   TexRockBL     bin/images/tloz/green/tile_rock_bl.png
+Texture   TexRockBM     bin/images/tloz/green/tile_rock_bm.png
+Texture   TexRockBR     bin/images/tloz/green/tile_rock_br.png
+Texture   TexWaterTL    bin/images/tloz/green/tile_water_tl.png
+Texture   TexWaterTM    bin/images/tloz/green/tile_water_tm.png
+Texture   TexWaterTR    bin/images/tloz/green/tile_water_tr.png
+Texture   TexWaterML    bin/images/tloz/green/tile_water_ml.png
+Texture   TexWaterMM    bin/images/tloz/green/tile_water_mm.png
+Texture   TexWaterMR    bin/images/tloz/green/tile_water_mr.png
+Texture   TexWaterBL    bin/images/tloz/green/tile_water_bl.png
+Texture   TexWaterBM    bin/images/tloz/green/tile_water_bm.png
+Texture   TexWaterBR    bin/images/tloz/green/tile_water_br.png
+Texture   TexBush       bin/images/tloz/green/tile_bush.png
+Texture   TexBlack      bin/images/tloz/tile_black.png
+Texture   TexTektite    bin/images/tloz/tektite.png
+Texture   TexKnight     bin/images/tloz/knight.png
+Animation Explosion     TexExplode     48    2 
+Animation RunDown       TexRunDown      2   15   
+Animation RunRight      TexRunRight     2   15    
+Animation RunUp         TexRunUp        2   15
+Animation StandDown     TexStandD       1    0   
+Animation StandRight    TexStandR       1    0    
+Animation StandUp       TexStandU       1    0
+Animation Tektite       TexTektite      2   10
+Animation Knight        TexKnight       2   10
+Animation AtkUp         TexAtkUp        1    0
+Animation AtkDown       TexAtkDown      1    0
+Animation AtkRight      TexAtkRight     1    0   
+Animation SwordUp       TexSwordUp      1    0
+Animation SwordRight    TexSwordRight   1    0
+Animation Black         TexBlack        1    0
+Animation RockTL        TexRockTL       1    0
+Animation RockTM        TexRockTM       1    0
+Animation RockTR        TexRockTR       1    0
+Animation RockBL        TexRockBL       1    0
+Animation RockBM        TexRockBM       1    0
+Animation RockBR        TexRockBR       1    0
+Animation WaterTL       TexWaterTL      1    0
+Animation WaterTM       TexWaterTM      1    0
+Animation WaterTR       TexWaterTR      1    0
+Animation WaterML       TexWaterML      1    0
+Animation WaterMM       TexWaterMM      1    0
+Animation WaterMR       TexWaterMR      1    0
+Animation WaterBL       TexWaterBL      1    0
+Animation WaterBM       TexWaterBM      1    0
+Animation WaterBR       TexWaterBR      1    0
+Animation Bush          TexBush         1    0
+Font      Arial      bin/fonts/arial.ttf
+Font      Mario      bin/fonts/mario.ttf
+Font      Megaman    bin/fonts/megaman.ttf
