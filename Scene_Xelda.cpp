@@ -262,27 +262,27 @@ void Scene_Xelda::sCamera()
     
     if (m_follow)
     {
+        // Keep view centered on player
         sf::View view = sf::View(sf::Vector2f(playerPos.x, playerPos.y), sf::Vector2f(windowSize));
         std::cout << "setting view: " << playerPos.x << "," << playerPos.y<< std::endl;
         m_game->window().setView(view);
-        
     }
     else
     {
+        // View each room as you enter it
         sf::Vector2f viewSize = currView.getSize();
         sf::Vector2f viewCenter = currView.getCenter();
 
-        // Calculate from center to each edge (Width/2 or Height/2)
-        float viewLeft   = viewCenter.x - (viewSize.x / 2); 
-        float viewRight  = viewCenter.x + (viewSize.x / 2);
-        float viewTop    = viewCenter.y - (viewSize.y / 2);
-        float viewBottom = viewCenter.y + (viewSize.y / 2);
+        // Find current room. Start is [0,0].
+        float roomX = floor(playerPos.x/viewSize.x);            // Float floor: -0.5 goes to -1.0
+        float roomY = floor(playerPos.y/viewSize.y);
+        std::cout << playerPos.x << "," << playerPos.y << "room: " << roomX << "," << roomY << std::endl;
 
-        // Check player position vs edge, then shift view by Width or Height
-             if (playerPos.x < viewLeft)    { currView.setCenter(viewCenter.x - viewSize.x, viewCenter.y); }
-        else if (playerPos.x > viewRight)   { currView.setCenter(viewCenter.x + viewSize.x, viewCenter.y); }
-        else if (playerPos.y < viewTop)     { currView.setCenter(viewCenter.x, viewCenter.y - viewSize.y); }
-        else if (playerPos.y > viewBottom)  { currView.setCenter(viewCenter.x, viewCenter.y + viewSize.y); }
+        // Calculate view
+        float newX = (roomX * viewSize.x) + (viewSize.x / 2);   // Scale room by viewSize and shift coordinates to center
+        float newY = (roomY * viewSize.y) + (viewSize.y / 2);
+
+        currView.setCenter(newX, newY);
         m_game->window().setView(currView);
     }
 }
