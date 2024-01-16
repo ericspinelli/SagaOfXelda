@@ -79,11 +79,12 @@ public:
 class CInput : public Component
 {
 public:
-    bool up      = false;
-    bool down    = false;
-    bool left    = false;
-    bool right   = false;
-    bool weapon  = false;
+    bool up        = false;
+    bool down      = false;
+    bool left      = false;
+    bool right     = false;
+    bool weapon    = false;
+    bool canAttack = true;
 
     CInput() {}
 };
@@ -125,8 +126,9 @@ public:
 class CState : public Component
 {
 public:
-    std::string state   = "jumping";
-    float jumpDuration  = 0;
+    std::string state     = "down";
+    bool isMoving         = false;     
+    bool isAttacking      = false;
     
     CState() {}
     CState(const std::string& s)

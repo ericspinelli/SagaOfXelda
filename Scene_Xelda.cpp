@@ -126,7 +126,46 @@ void Scene_Xelda::spawnPlayer()
 
 void Scene_Xelda::spawnWeapon()
 {
+    auto w = m_entityManager.addEntity("weapon");
+    auto playerPos = m_player->getComponent<CTransform>().pos;
+    auto playerState = m_player->getComponent<CState>().state;
+    Vec2 weaponPos;
+    Vec2 weaponScale = Vec2(1,1);
 
+    if (playerState == "left")
+    {
+        w->addComponent<CAnimation>(m_game->assets().getAnimation("SwordRight"), true);
+        weaponPos.x = playerPos.x - m_game->assets().getAnimation("SwordRight").getSize().x;
+        weaponPos.y = playerPos.y;
+        weaponScale.x = -1;
+    }
+    else if (playerState == "right")
+    {
+        w->addComponent<CAnimation>(m_game->assets().getAnimation("SwordRight"), true);
+        weaponPos.x = playerPos.x + m_game->assets().getAnimation("SwordRight").getSize().x;
+        weaponPos.y = playerPos.y;
+        weaponScale.x = 1;
+    }
+    else if (playerState == "up")
+    {
+        w->addComponent<CAnimation>(m_game->assets().getAnimation("SwordUp"), true);
+        weaponPos.x = playerPos.x; 
+        weaponPos.y = playerPos.y - m_game->assets().getAnimation("SwordUp").getSize().y;
+        weaponScale.y = 1;
+    }
+    else if (playerState == "down")
+    {
+        w->addComponent<CAnimation>(m_game->assets().getAnimation("SwordUp"), true);
+        weaponPos.x = playerPos.x; 
+        weaponPos.y = playerPos.y + m_game->assets().getAnimation("SwordUp").getSize().y;
+        weaponScale.y = -1;
+    }
+    w->addComponent<CTransform>(weaponPos);
+    w->getComponent<CTransform>().scale = weaponScale;
+
+    w->addComponent<CBoundingBox>(Vec2(playerPos.x, playerPos.y + m_player->getComponent<CBoundingBox>().halfSize.y));
+    w->addComponent<CDamage>(10);
+    w->addComponent<CLifespan>(10, m_currentFrame);
 }
 
 void Scene_Xelda::update()
@@ -136,6 +175,7 @@ void Scene_Xelda::update()
     if (!m_paused)
     {
         sMovement();
+        sWeapon();
         sCollision();
         sLifespan();
         sCamera();
@@ -155,20 +195,25 @@ void Scene_Xelda::sDoAction(const Action& action)
         else if (action.name() == "QUIT")               { onEnd(); }
         else if (action.name() == "PAUSE")              { setPaused(!m_paused); }
 
-        // Player movement
+        // Player movement / actions
         else if (action.name() == "LEFT")               { m_player->getComponent<CInput>().left     = true; }
         else if (action.name() == "RIGHT")              { m_player->getComponent<CInput>().right    = true; }
         else if (action.name() == "UP")                 { m_player->getComponent<CInput>().up       = true; }
         else if (action.name() == "DOWN")               { m_player->getComponent<CInput>().down     = true; }
-        else if (action.name() == "WEAPON")             { m_player->getComponent<CInput>().weapon   = true; }
+        else if (action.name() == "WEAPON")             { if (m_player->getComponent<CInput>().canAttack == true)
+                                                          { 
+                                                              m_player->getComponent<CInput>().weapon   = true;
+                                                              m_player->getComponent<CInput>().canAttack = false;
+                                                          }
+                                                        }
     }
     else if (action.type() == "END")
     {
-             if (action.name() == "LEFT")               { m_player->getComponent<CInput>().left     = false; }
-        else if (action.name() == "RIGHT")              { m_player->getComponent<CInput>().right    = false; }
-        else if (action.name() == "UP")                 { m_player->getComponent<CInput>().up       = false; }
-        else if (action.name() == "DOWN")               { m_player->getComponent<CInput>().down     = false; }
-        else if (action.name() == "WEAPON")             { m_player->getComponent<CInput>().weapon   = false; }
+             if (action.name() == "LEFT")               { m_player->getComponent<CInput>().left      = false; }
+        else if (action.name() == "RIGHT")              { m_player->getComponent<CInput>().right     = false; }
+        else if (action.name() == "UP")                 { m_player->getComponent<CInput>().up        = false; }
+        else if (action.name() == "DOWN")               { m_player->getComponent<CInput>().down      = false; }
+        else if (action.name() == "WEAPON")             { m_player->getComponent<CInput>().canAttack = true; }
     }
 }
 
@@ -186,16 +231,36 @@ void Scene_Xelda::sMovement()
     if (m_player->getComponent<CInput>().up && m_player->getComponent<CInput>().down)    { playerVelocity.y =  0; }                                        
     
     // Set player state based on velocity
-         if (playerVelocity.x < 0) { m_player->getComponent<CState>().state = "left"; m_player->getComponent<CTransform>().scale.x = -1;}
-    else if (playerVelocity.x > 0) { m_player->getComponent<CState>().state = "right"; m_player->getComponent<CTransform>().scale.x = 1;}
-    else if (playerVelocity.y < 0) { m_player->getComponent<CState>().state = "up"; }
-    else if (playerVelocity.y > 0) { m_player->getComponent<CState>().state = "down"; }
-    else                           { m_player->getComponent<CState>().state = "stand"; }
+         if (playerVelocity.x < 0) { m_player->getComponent<CState>().isMoving = true;
+                                     m_player->getComponent<CState>().state = "left";
+                                     m_player->getComponent<CTransform>().scale.x = -1; }
+    else if (playerVelocity.x > 0) { m_player->getComponent<CState>().isMoving = true;
+                                     m_player->getComponent<CState>().state = "right";
+                                     m_player->getComponent<CTransform>().scale.x = 1;}
+    else if (playerVelocity.y < 0) { m_player->getComponent<CState>().isMoving = true;
+                                     m_player->getComponent<CState>().state = "up"; }
+    else if (playerVelocity.y > 0) { m_player->getComponent<CState>().isMoving = true;
+                                     m_player->getComponent<CState>().state = "down"; }
+    else                           { m_player->getComponent<CState>().isMoving = false; }
+                                     //m_player->getComponent<CState>().state = "stand"; }
 
     m_player->getComponent<CTransform>().velocity = playerVelocity;
 
-    // Update player position using velocity
-    m_player->getComponent<CTransform>().pos += playerVelocity;
+    // Update player position using velocity if player is NOT attacking
+    if (!m_player->getComponent<CState>().isAttacking)
+    {
+        m_player->getComponent<CTransform>().pos += playerVelocity;
+    }
+}
+
+void Scene_Xelda::sWeapon()
+{
+    if (m_player->getComponent<CInput>().weapon && m_entityManager.getEntities("weapon").size() == 0)
+    {
+        spawnWeapon();
+        m_player->getComponent<CInput>().weapon = false;
+        m_player->getComponent<CState>().isAttacking = true;
+    }
 }
 
 void Scene_Xelda::sCollision()
@@ -205,35 +270,69 @@ void Scene_Xelda::sCollision()
 
 void Scene_Xelda::sLifespan()
 {
+    for (auto e : m_entityManager.getEntities())
+    {
+        if (!e->hasComponent<CLifespan>()) { continue; }
 
+        e->getComponent<CLifespan>().lifespan--;
+        if (e->getComponent<CLifespan>().lifespan == 0)
+        {
+            e->destroy();
+            if (e->tag() == "weapon") { m_player->getComponent<CState>().isAttacking = false; }
+        }
+    }
 }
 
 void Scene_Xelda::sAnimation()
 {
     // Set player animation based on state. Do NOT overwrite animation if it matches current state.
+    std::string state = m_player->getComponent<CState>().state;
     std::string animation = m_player->getComponent<CAnimation>().animation.getName();
 
-    if ((m_player->getComponent<CState>().state == "left") && (animation != "RunRight"))
+    std::cout << "state: " << state << " isAttacking: " << m_player->getComponent<CState>().isAttacking << std::endl;
+    
+    // Attacking animations
+    if (m_player->getComponent<CState>().isAttacking)
     {
-        m_player->addComponent<CAnimation>(m_game->assets().getAnimation("RunRight"), true);
+        if (state == "left" || state == "right")
+        {
+            m_player->addComponent<CAnimation>(m_game->assets().getAnimation("AtkRight"), true);
+        }
+        else if (state == "up")
+        {
+            m_player->addComponent<CAnimation>(m_game->assets().getAnimation("AtkUp"), true);
+        }
+        else if (state == "down")
+        {
+            m_player->addComponent<CAnimation>(m_game->assets().getAnimation("AtkDown"), true);
+        }
     }
-    else if ((m_player->getComponent<CState>().state == "right") && (animation != "RunRight"))
+    // NON-attacking animations (running/standing)
+    else
     {
-        m_player->addComponent<CAnimation>(m_game->assets().getAnimation("RunRight"), true);
-    }
-    else if ((m_player->getComponent<CState>().state == "up") && (animation != "RunUp"))
-    {
-        m_player->addComponent<CAnimation>(m_game->assets().getAnimation("RunUp"), true);
-    }
-    else if ((m_player->getComponent<CState>().state == "down") && (animation != "RunDown"))
-    {
-        m_player->addComponent<CAnimation>(m_game->assets().getAnimation("RunDown"), true);
-    }
-    else if (m_player->getComponent<CState>().state == "stand")
-    {
-             if (animation == "RunRight") { m_player->addComponent<CAnimation>(m_game->assets().getAnimation("StandRight"), true); }
-        else if (animation == "RunUp")    { m_player->addComponent<CAnimation>(m_game->assets().getAnimation("StandUp"), true); }
-        else if (animation == "RunDown")  { m_player->addComponent<CAnimation>(m_game->assets().getAnimation("StandDown"), true); }
+        // Running animations
+        if (m_player->getComponent<CState>().isMoving)
+        {
+            if ((state == "left" || state == "right") && (animation != "RunRight"))
+            {
+                m_player->addComponent<CAnimation>(m_game->assets().getAnimation("RunRight"), true);
+            }
+            else if ((state == "up") && (animation != "RunUp"))
+            {
+                m_player->addComponent<CAnimation>(m_game->assets().getAnimation("RunUp"), true);
+            }
+            else if ((state == "down") && (animation != "RunDown"))
+            {
+                m_player->addComponent<CAnimation>(m_game->assets().getAnimation("RunDown"), true);
+            }
+        }
+        else
+        {
+            if (state == "left" || state == "right")
+                                        { m_player->addComponent<CAnimation>(m_game->assets().getAnimation("StandRight"), true); }
+            else if (state == "up")     { m_player->addComponent<CAnimation>(m_game->assets().getAnimation("StandUp"), true); }
+            else if (state == "down")   { m_player->addComponent<CAnimation>(m_game->assets().getAnimation("StandDown"), true); }
+        }
     }
 
     // All entity animations
