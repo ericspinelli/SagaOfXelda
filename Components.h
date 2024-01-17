@@ -9,11 +9,13 @@
 //              Animation
 //              BoundingBox
 //              Damage
+//              FollowPlayer
 //              Health
 //              Input
 //              Invulnerable
 //              Gravity (not used in this game)
 //              Lifespan
+//              Patrol
 //              State
 //              Transform
 
@@ -61,6 +63,18 @@ public:
     CDamage() {}
     CDamage(const int d)
         : damage(d)
+        {}
+};
+
+class CFollowPlayer : public Component
+{
+public:
+    Vec2 home   = {0,0};
+    float speed = 0;
+
+    CFollowPlayer() {}
+    CFollowPlayer(Vec2 p, float s)
+        : home(p), speed(s)
         {}
 };
 
@@ -120,6 +134,19 @@ public:
     CLifespan() {}
     CLifespan(int duration, int frame)
         : lifespan(duration), frameCreated(frame)
+        {}
+};
+
+class CPatrol : public Component
+{
+public:
+    std::vector<Vec2> positions;
+    size_t currentPosition = 0;
+    float speed = 0;
+
+    CPatrol() {}
+    CPatrol(std::vector<Vec2>& p, float s)
+        : positions(p), speed(s)
         {}
 };
 

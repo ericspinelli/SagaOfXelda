@@ -76,22 +76,43 @@ void Scene_Xelda::loadLevel(const std::string& filename)
             std::cout << "NPC" << std::endl;
 
             std::string animName, typeAI;
-            int roomX, roomY, gridX, gridY, health, damage;
+            int roomX, roomY, gridX, gridY, health, damage, patrolPos, Xi, Yi;
             bool blockMove, blockVision;
+            float speed;
+            std::vector<Vec2> patrolVec;
 
             fin >> animName
                 >> roomX >> roomY               // Room coordinates (room units = windowWidth x windowHeight)
                 >> gridX >> gridY               // Grid number from room top left (grid unit = 64x64px)
                 >> blockMove >> blockVision     // Blocks movement, blocks vision
-                >> health >> damage;            // Max/starting health, damage to player
-            
+                >> health >> damage             // Max/starting health, damage to player
+                >> typeAI;                      // Follow or Patrol
+
             auto enemy = m_entityManager.addEntity("enemy");
 
             enemy->addComponent<CAnimation>(m_game->assets().getAnimation(animName), true);
             enemy->addComponent<CBoundingBox>(enemy->getComponent<CAnimation>().animation.getSize(), blockMove, blockVision);
-            enemy->addComponent<CTransform>(getPosition(roomX, roomY, gridX, gridY, enemy));
+            auto startingPos = getPosition(roomX, roomY, gridX, gridY, enemy);
+            enemy->addComponent<CTransform>(startingPos);
             enemy->addComponent<CHealth>(health);
             enemy->addComponent<CDamage>(damage);
+
+            if (typeAI == "Follow")
+            {
+                fin >> speed;
+                enemy->addComponent<CFollowPlayer>(startingPos, speed);
+            }
+            else if (typeAI == "Patrol")
+            {
+                fin >> speed
+                    >> patrolPos;
+                for (int i = 0; i < patrolPos; i++)
+                {
+                    fin >> Xi >> Yi;
+                    patrolVec.push_back(getPosition(roomX, roomY, Xi, Yi, enemy));
+                }
+                enemy->addComponent<CPatrol>(patrolVec, speed);
+            }
 
             Vec2 pos = getPosition(roomX, roomY, gridX, gridY, enemy);
             std::cout << animName << " @ " << pos.x << "," << pos.y << std::endl;
@@ -180,8 +201,10 @@ void Scene_Xelda::update()
 
     if (!m_paused)
     {
+        sAI();
         sMovement();
         sWeapon();
+        
         sCollision();
         sLifespan();
         sCamera();
@@ -254,7 +277,6 @@ void Scene_Xelda::sMovement()
     else if (playerVelocity.y > 0) { m_player->getComponent<CState>().isMoving = true;
                                      m_player->getComponent<CState>().state = "down"; }
     else                           { m_player->getComponent<CState>().isMoving = false; }
-                                     //m_player->getComponent<CState>().state = "stand"; }
 
     m_player->getComponent<CTransform>().velocity = playerVelocity;
 
@@ -262,6 +284,15 @@ void Scene_Xelda::sMovement()
     if (!m_player->getComponent<CState>().isAttacking)
     {
         m_player->getComponent<CTransform>().pos += playerVelocity;
+    }
+
+    for (auto e : m_entityManager.getEntities())
+    {
+        if (e->tag() == "player") { continue; }
+        if (!e->hasComponent<CTransform>()) { continue; }
+
+        auto& eTransform = e->getComponent<CTransform>();
+        eTransform.pos += eTransform.velocity;
     }
 }
 
@@ -272,6 +303,35 @@ void Scene_Xelda::sWeapon()
         spawnWeapon();
         m_player->getComponent<CInput>().weapon = false;
         m_player->getComponent<CState>().isAttacking = true;
+    }
+}
+
+void Scene_Xelda::sAI()
+{
+    for (auto e : m_entityManager.getEntities())
+    {
+        if (e->hasComponent<CFollowPlayer>())
+        {
+            // TODO
+        }
+        else if (e->hasComponent<CPatrol>())
+        {
+            auto& eTransform = e->getComponent<CTransform>();
+            auto& ePatrol = e->getComponent<CPatrol>();
+
+            Vec2 target = ePatrol.positions[ePatrol.currentPosition];
+            if (eTransform.pos.dist(ePatrol.positions[ePatrol.currentPosition]) <= 5) // Within 5 pixels of current target
+            {
+                ePatrol.currentPosition = (ePatrol.currentPosition + 1) % ePatrol.positions.size();
+            }
+
+            target = ePatrol.positions[ePatrol.currentPosition];
+
+            Vec2 direction = target - eTransform.pos;
+            direction.normalize();
+            eTransform.velocity.x = direction.x * ePatrol.speed; 
+            eTransform.velocity.y = direction.y * ePatrol.speed;
+        }
     }
 }
 
@@ -297,26 +357,20 @@ void Scene_Xelda::sCollision()
                 // Collision from RIGHT
                 if (previousOverlap.y > 0 && playerTransform.prevPos.x > tileTransform.pos.x)
                 {
-                    std::cout << "from R" << std::endl;
-                    std::cout << "pPrev: " << playerTransform.prevPos.x << " tPos: " << tileTransform.pos.x << std::endl;
                     playerTransform.pos.x += overlap.x;
-                    std::cout << "new pPos: " << playerTransform.pos.x << std::endl;
                 }
                 // Collision from LEFT
                 else if (previousOverlap.y > 0 && playerTransform.prevPos.x < tileTransform.pos.x)
                 {
-                    std::cout << "from L" << std::endl;
                     playerTransform.pos.x -= overlap.x;
                 }
 
                 if (previousOverlap.x > 0 && playerTransform.prevPos.y < tileTransform.prevPos.y)
                 {
-                    std::cout << "from U" << std::endl;
                     playerTransform.pos.y -= overlap.y;
                 }
                 else if (previousOverlap.x > 0 && playerTransform.prevPos.y > tileTransform.prevPos.y)
                 {
-                    std::cout << "from D" << std::endl;
                     playerTransform.pos.y += overlap.y;
                 }
                 
@@ -341,8 +395,8 @@ void Scene_Xelda::sCollision()
                 auto& pHealth = m_player->getComponent<CHealth>().health;
                 std::cout << pHealth << std::endl;
                 pHealth -= enemy->getComponent<CDamage>().damage;
-                std::cout << "Damage: " << enemy->getComponent<CDamage>().damage << " HEALTH: " << pHealth << std::endl;
                 m_player->addComponent<CInvulnerable>(m_playerConfig.IFRAMES);
+                
                 if (pHealth <= 0) { std::cout << "DEAD!!!!!!!" << std::endl; m_player->destroy(); }
             }
         }
@@ -356,10 +410,8 @@ void Scene_Xelda::sCollision()
             if (Physics::isCollision(overlap))
             {
                 auto& eHealth = enemy->getComponent<CHealth>().health;
-                std::cout << enemy->getComponent<CAnimation>().animation.getName() << ": " << eHealth << "/" << enemy->getComponent<CHealth>().maxHealth << std::endl;
                 eHealth -= weapon->getComponent<CDamage>().damage;
                 weapon->removeComponent<CDamage>();
-                std::cout << enemy->getComponent<CAnimation>().animation.getName() << ": " << eHealth << "/" << enemy->getComponent<CHealth>().maxHealth << std::endl;
 
                 if (eHealth <= 0) { enemy->destroy(); }
             }
@@ -565,6 +617,7 @@ void Scene_Xelda::sRender()
     {
         for (auto e : m_entityManager.getEntities())
         {
+            // Draw bounding boxes
             if (e->hasComponent<CBoundingBox>())
             {
                 auto& box = e->getComponent<CBoundingBox>();
@@ -593,6 +646,19 @@ void Scene_Xelda::sRender()
                 }
                 rect.setOutlineThickness(1);
                 m_game->window().draw(rect);
+            }
+
+            // Draw patrol points
+            if (e->hasComponent<CPatrol>())
+            {
+                auto pVec = e->getComponent<CPatrol>().positions;
+                for (auto p : pVec)
+                {
+                    sf::CircleShape circle = sf::CircleShape(5);
+                    circle.setPosition(sf::Vector2f(p.x, p.y));
+                    circle.setFillColor(sf::Color::Black);
+                    m_game->window().draw(circle);
+                }
             }
         }
     }

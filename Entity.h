@@ -12,10 +12,12 @@ typedef std::tuple<
     CAnimation,
     CBoundingBox,
     CDamage,
+    CFollowPlayer,
     CHealth,
     CInput,
     CInvulnerable,
     CLifespan,
+    CPatrol,
     CState,
     CTransform
 > ComponentTuple;

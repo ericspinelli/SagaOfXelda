@@ -51,6 +51,7 @@ protected:
     void sDoAction(const Action& action);
     void sMovement();
     void sWeapon();
+    void sAI();
     void sCollision();
     void sLifespan();
     void sAnimation();
