@@ -67,7 +67,7 @@ public:
 class CHealth : public Component
 {
 public:
-    size_t health    = 0;
+    int health       = 0;
     size_t maxHealth = 0;
 
     CHealth() {}

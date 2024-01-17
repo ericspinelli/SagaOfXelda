@@ -496,8 +496,7 @@ void Scene_Xelda::sCamera()
 
 void Scene_Xelda::sRender()
 {
-    // Clear the window to a blue
-    //m_game->window().setView(m_game->window().getDefaultView());
+    // Clear the window to sand color
     m_game->window().clear(sf::Color(255, 192, 122));
     
     // Entity rendering and animation
@@ -515,9 +514,43 @@ void Scene_Xelda::sRender()
                 animation.getSprite().setScale(transform.scale.x, transform.scale.y);
                 m_game->window().draw(animation.getSprite());
             }
+
+            // Health bar animation
+            if (e->hasComponent<CHealth>())
+            {
+                // Entity position
+                auto ePos = e->getComponent<CTransform>().pos;
+
+                // Outer rectangle (max health points)
+                sf::RectangleShape outerRect = sf::RectangleShape(sf::Vector2f(64, 5));
+                outerRect.setOutlineColor(sf::Color(0,0,0,255));            // Black
+                outerRect.setOutlineThickness(2);
+                outerRect.setFillColor(sf::Color(0,0,0,255));               // Black
+                outerRect.setOrigin(sf::Vector2f(32, 3));                   // Center origin
+                outerRect.setPosition(ePos.x, ePos.y - 40);                 // Above entity
+                m_game->window().draw(outerRect);
+
+                // Inner rectangles (actual health points)
+                auto health = e->getComponent<CHealth>();
+                float width = outerRect.getSize().x / health.maxHealth;
+                float innerX = ePos.x - 31;
+                float innerY = ePos.y - 43;
+
+                for (int i = 0; i < health.health; i++)
+                {
+                    sf::RectangleShape innerRect = sf::RectangleShape(sf::Vector2f(width, 5));
+                    innerRect.setOutlineColor(sf::Color(0,0,0,255));        // Black
+                    innerRect.setOutlineThickness(1);
+                    innerRect.setFillColor(sf::Color(255,0,0,255));         // Red
+                    innerRect.setPosition(sf::Vector2f(innerX, innerY));
+                    m_game->window().draw(innerRect);
+                    innerX += width;
+                }   
+            }
         }
     }
     
+    // Draw bounding boxes around object, colored by what they block
     if (m_drawCollision)
     {
         for (auto e : m_entityManager.getEntities())
@@ -534,15 +567,19 @@ void Scene_Xelda::sRender()
                 rect.setFillColor(sf::Color(0,0,0,0));
                 if (box.blockMove && box.blockVision)
                 {
-                    rect.setOutlineColor(sf::Color(255,255,255,255));
+                    rect.setOutlineColor(sf::Color(255,255,255,255));   // White
                 }
                 else if (box.blockMove)
                 {
-                    rect.setOutlineColor(sf::Color(0,0,255,255));
+                    rect.setOutlineColor(sf::Color(0,0,255,255));       // Blue
                 }
                 else if (box.blockVision)
                 {
-                    rect.setOutlineColor(sf::Color(255,0,0,255));
+                    rect.setOutlineColor(sf::Color(255,0,0,255));       // Red
+                }
+                else
+                {
+                    rect.setOutlineColor(sf::Color(0,0,0,255));         // Black
                 }
                 rect.setOutlineThickness(1);
                 m_game->window().draw(rect);
