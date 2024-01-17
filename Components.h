@@ -92,11 +92,11 @@ public:
 class CInvulnerable : public Component
 {
 public:
-    bool invulnerable = false;
+    size_t duration = 0;
 
     CInvulnerable() {}
-    CInvulnerable(const bool i)
-        : invulnerable(i)
+    CInvulnerable(const size_t duration)
+        : duration(duration)
         {}
 };
 

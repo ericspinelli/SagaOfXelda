@@ -8,12 +8,14 @@
 #include "EntityManager.h"
 #include "Scene.h"
 #include "Action.h"
+#include "Physics.h"
 
 class Scene_Xelda : public Scene
 {
     struct PlayerConfig
     {
         float X, Y, CX, CY, SPEED, HEALTH;
+        size_t IFRAMES;
         std::string WEAPON;
     };
 

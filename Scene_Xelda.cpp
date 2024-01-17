@@ -46,7 +46,8 @@ void Scene_Xelda::loadLevel(const std::string& filename)
             fin >> m_playerConfig.X >> m_playerConfig.Y     // Player starting position (x, y)
                 >> m_playerConfig.CX >> m_playerConfig.CY   // Player collision box height, width (x, y)
                 >> m_playerConfig.SPEED                     // Player move speed (all directions)
-                >> m_playerConfig.HEALTH;                   // Player starting health / starting max health
+                >> m_playerConfig.HEALTH                    // Player starting health / starting max health
+                >> m_playerConfig.IFRAMES;                  // # of frames of invulnerability after being hit
             
             spawnPlayer();
         }
@@ -61,7 +62,7 @@ void Scene_Xelda::loadLevel(const std::string& filename)
                 >> gridX >> gridY               // Grid number from room top left (grid unit = 64x64px)
                 >> blockMove >> blockVision;    // Blocks movement, blocks vision
             
-            auto tile = m_entityManager.addEntity("Tile");
+            auto tile = m_entityManager.addEntity("tile");
 
             tile->addComponent<CAnimation>(m_game->assets().getAnimation(animName), true);
             tile->addComponent<CBoundingBox>(tile->getComponent<CAnimation>().animation.getSize(), blockMove, blockVision);
@@ -163,8 +164,8 @@ void Scene_Xelda::spawnWeapon()
     w->addComponent<CTransform>(weaponPos);
     w->getComponent<CTransform>().scale = weaponScale;
 
-    w->addComponent<CBoundingBox>(Vec2(playerPos.x, playerPos.y + m_player->getComponent<CBoundingBox>().halfSize.y));
-    w->addComponent<CDamage>(10);
+    w->addComponent<CBoundingBox>(w->getComponent<CAnimation>().animation.getSize());
+    w->addComponent<CDamage>(1);
     w->addComponent<CLifespan>(10, m_currentFrame);
 }
 
@@ -182,6 +183,8 @@ void Scene_Xelda::update()
         sAnimation();    
     }
     sRender();
+    
+    m_currentFrame++;
 }
 
 void Scene_Xelda::sDoAction(const Action& action)
@@ -219,6 +222,10 @@ void Scene_Xelda::sDoAction(const Action& action)
 
 void Scene_Xelda::sMovement()
 {
+    // Record current position as previous position
+    auto& playerTransform = m_player->getComponent<CTransform>();
+    playerTransform.prevPos = playerTransform.pos;
+
     // Set player velocity based on input
     Vec2 playerVelocity = {0, 0};
 
@@ -265,20 +272,123 @@ void Scene_Xelda::sWeapon()
 
 void Scene_Xelda::sCollision()
 {
+    for (auto tile : m_entityManager.getEntities("tile"))
+    {
+        if (!(tile->hasComponent<CBoundingBox>())) {continue;}
 
+        // PLAYER & TILES
+        Vec2 overlap          = Physics::getOverlap(m_player, tile);
+        Vec2 previousOverlap  = Physics::getPreviousOverlap(m_player, tile);
+
+        // typedef for readability
+        auto& playerTransform = m_player->getComponent<CTransform>();
+        auto& tileTransform   = tile->getComponent<CTransform>();
+        auto& tileType = tile->getComponent<CAnimation>().animation.getName();
+
+        if (Physics::isCollision(overlap))
+        {
+            if (tile->getComponent<CBoundingBox>().blockMove)
+            {
+                // Collision from RIGHT
+                if (previousOverlap.y > 0 && playerTransform.prevPos.x > tileTransform.pos.x)
+                {
+                    std::cout << "from R" << std::endl;
+                    std::cout << "pPrev: " << playerTransform.prevPos.x << " tPos: " << tileTransform.pos.x << std::endl;
+                    playerTransform.pos.x += overlap.x;
+                    std::cout << "new pPos: " << playerTransform.pos.x << std::endl;
+                }
+                // Collision from LEFT
+                else if (previousOverlap.y > 0 && playerTransform.prevPos.x < tileTransform.pos.x)
+                {
+                    std::cout << "from L" << std::endl;
+                    playerTransform.pos.x -= overlap.x;
+                }
+
+                if (previousOverlap.x > 0 && playerTransform.prevPos.y < tileTransform.prevPos.y)
+                {
+                    std::cout << "from U" << std::endl;
+                    playerTransform.pos.y -= overlap.y;
+                }
+                else if (previousOverlap.x > 0 && playerTransform.prevPos.y > tileTransform.prevPos.y)
+                {
+                    std::cout << "from D" << std::endl;
+                    playerTransform.pos.y += overlap.y;
+                }
+                
+                playerTransform.velocity = Vec2(0,0);
+            }
+        }
+    }
+
+    // ENEMY collisions
+    for (auto enemy : m_entityManager.getEntities("enemy"))
+    {
+        if (!(enemy->hasComponent<CBoundingBox>())) {continue;}
+
+        // PLAYER & ENEMIES
+        Vec2 overlap          = Physics::getOverlap(m_player, enemy);
+        Vec2 previousOverlap  = Physics::getPreviousOverlap(m_player, enemy);
+
+        if (Physics::isCollision(overlap))
+        {
+            if (enemy->hasComponent<CDamage>() && !m_player->hasComponent<CInvulnerable>())
+            {
+                std::cout << m_player->getComponent<CHealth>().health << std::endl;
+                m_player->getComponent<CHealth>().health -= enemy->getComponent<CDamage>().damage;
+                std::cout << "Damage: " << enemy->getComponent<CDamage>().damage << " HEALTH: " << m_player->getComponent<CHealth>().health << std::endl;
+                m_player->addComponent<CInvulnerable>(m_playerConfig.IFRAMES);
+            }
+        }
+
+        // WEAPON & ENEMIES
+        for (auto weapon : m_entityManager.getEntities("weapon"))
+        {
+            if (!weapon->hasComponent<CDamage>()) { continue; }
+            
+            overlap = Physics::getOverlap(weapon, enemy);
+            if (Physics::isCollision(overlap))
+            {
+                std::cout << enemy->getComponent<CAnimation>().animation.getName() << ": " << enemy->getComponent<CHealth>().health << "/" << enemy->getComponent<CHealth>().maxHealth << std::endl;
+                enemy->getComponent<CHealth>().health -= weapon->getComponent<CDamage>().damage;
+                weapon->removeComponent<CDamage>();
+                std::cout << enemy->getComponent<CAnimation>().animation.getName() << ": " << enemy->getComponent<CHealth>().health << "/" << enemy->getComponent<CHealth>().maxHealth << std::endl;
+            }
+        }
+        
+    }
 }
 
 void Scene_Xelda::sLifespan()
 {
+    // Check lifespan for weapons, bullets, etc
     for (auto e : m_entityManager.getEntities())
     {
         if (!e->hasComponent<CLifespan>()) { continue; }
 
-        e->getComponent<CLifespan>().lifespan--;
-        if (e->getComponent<CLifespan>().lifespan == 0)
+        auto& lifespan = e->getComponent<CLifespan>().lifespan;
+        lifespan--;
+
+        if (lifespan == 0)
         {
             e->destroy();
-            if (e->tag() == "weapon") { m_player->getComponent<CState>().isAttacking = false; }
+            
+            if (e->tag() == "weapon")
+            {
+                m_player->getComponent<CState>().isAttacking = false;
+            }
+        }
+    }
+
+    // Count down invulnerability duration until it hits 0
+    if (m_player->hasComponent<CInvulnerable>())
+    {
+        auto& duration = m_player->getComponent<CInvulnerable>().duration;
+        duration--;
+        
+        std::cout << "iFrames: " << duration << std::endl;
+        if (duration == 0)
+        {
+            m_player->removeComponent<CInvulnerable>();
         }
     }
 }
@@ -288,8 +398,6 @@ void Scene_Xelda::sAnimation()
     // Set player animation based on state. Do NOT overwrite animation if it matches current state.
     std::string state = m_player->getComponent<CState>().state;
     std::string animation = m_player->getComponent<CAnimation>().animation.getName();
-
-    std::cout << "state: " << state << " isAttacking: " << m_player->getComponent<CState>().isAttacking << std::endl;
     
     // Attacking animations
     if (m_player->getComponent<CState>().isAttacking)
@@ -375,7 +483,7 @@ void Scene_Xelda::sCamera()
         // Find current room. Start is [0,0].
         float roomX = floor(playerPos.x/viewSize.x);            // Float floor: -0.5 goes to -1.0
         float roomY = floor(playerPos.y/viewSize.y);
-        std::cout << playerPos.x << "," << playerPos.y << "room: " << roomX << "," << roomY << std::endl;
+        std::cout << "Pos: (" << playerPos.x << "," << playerPos.y << ") Room: (" << roomX << "," << roomY << ")" <<std::endl;
 
         // Calculate view
         float newX = (roomX * viewSize.x) + (viewSize.x / 2);   // Scale room by viewSize and shift coordinates to center
@@ -410,6 +518,38 @@ void Scene_Xelda::sRender()
         }
     }
     
+    if (m_drawCollision)
+    {
+        for (auto e : m_entityManager.getEntities())
+        {
+            if (e->hasComponent<CBoundingBox>())
+            {
+                auto& box = e->getComponent<CBoundingBox>();
+                auto& transform = e->getComponent<CTransform>();
+
+                sf::RectangleShape rect;
+                rect.setSize(sf::Vector2f(box.size.x-1, box.size.y-1));
+                rect.setOrigin(sf::Vector2f(box.halfSize.x, box.halfSize.y));
+                rect.setPosition(transform.pos.x, transform.pos.y);
+                rect.setFillColor(sf::Color(0,0,0,0));
+                if (box.blockMove && box.blockVision)
+                {
+                    rect.setOutlineColor(sf::Color(255,255,255,255));
+                }
+                else if (box.blockMove)
+                {
+                    rect.setOutlineColor(sf::Color(0,0,255,255));
+                }
+                else if (box.blockVision)
+                {
+                    rect.setOutlineColor(sf::Color(255,0,0,255));
+                }
+                rect.setOutlineThickness(1);
+                m_game->window().draw(rect);
+            }
+        }
+    }
+
     m_game->window().display();
 }
 
