@@ -173,6 +173,11 @@ void Scene_Xelda::update()
 {
     m_entityManager.update();
 
+    if (m_entityManager.getEntities("player").size() == 0)
+    {
+        loadLevel(m_levelPath);
+    }
+
     if (!m_paused)
     {
         sMovement();
@@ -333,10 +338,12 @@ void Scene_Xelda::sCollision()
         {
             if (enemy->hasComponent<CDamage>() && !m_player->hasComponent<CInvulnerable>())
             {
-                std::cout << m_player->getComponent<CHealth>().health << std::endl;
-                m_player->getComponent<CHealth>().health -= enemy->getComponent<CDamage>().damage;
-                std::cout << "Damage: " << enemy->getComponent<CDamage>().damage << " HEALTH: " << m_player->getComponent<CHealth>().health << std::endl;
+                auto& pHealth = m_player->getComponent<CHealth>().health;
+                std::cout << pHealth << std::endl;
+                pHealth -= enemy->getComponent<CDamage>().damage;
+                std::cout << "Damage: " << enemy->getComponent<CDamage>().damage << " HEALTH: " << pHealth << std::endl;
                 m_player->addComponent<CInvulnerable>(m_playerConfig.IFRAMES);
+                if (pHealth <= 0) { std::cout << "DEAD!!!!!!!" << std::endl; m_player->destroy(); }
             }
         }
 
@@ -348,10 +355,13 @@ void Scene_Xelda::sCollision()
             overlap = Physics::getOverlap(weapon, enemy);
             if (Physics::isCollision(overlap))
             {
-                std::cout << enemy->getComponent<CAnimation>().animation.getName() << ": " << enemy->getComponent<CHealth>().health << "/" << enemy->getComponent<CHealth>().maxHealth << std::endl;
-                enemy->getComponent<CHealth>().health -= weapon->getComponent<CDamage>().damage;
+                auto& eHealth = enemy->getComponent<CHealth>().health;
+                std::cout << enemy->getComponent<CAnimation>().animation.getName() << ": " << eHealth << "/" << enemy->getComponent<CHealth>().maxHealth << std::endl;
+                eHealth -= weapon->getComponent<CDamage>().damage;
                 weapon->removeComponent<CDamage>();
-                std::cout << enemy->getComponent<CAnimation>().animation.getName() << ": " << enemy->getComponent<CHealth>().health << "/" << enemy->getComponent<CHealth>().maxHealth << std::endl;
+                std::cout << enemy->getComponent<CAnimation>().animation.getName() << ": " << eHealth << "/" << enemy->getComponent<CHealth>().maxHealth << std::endl;
+
+                if (eHealth <= 0) { enemy->destroy(); }
             }
         }
         
