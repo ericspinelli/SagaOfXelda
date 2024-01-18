@@ -69,6 +69,7 @@ void Scene_Xelda::loadLevel(const std::string& filename)
             tile->addComponent<CTransform>(getPosition(roomX, roomY, gridX, gridY, tile));
             Vec2 pos = getPosition(roomX, roomY, gridX, gridY, tile);
             std::cout << animName << ": " << pos.x << "," << pos.y << std::endl;
+            std::cout << "bM, bV: " << blockMove << "," << blockVision << std::endl;
             
         }
         if (temp == "NPC")
@@ -138,7 +139,7 @@ void Scene_Xelda::spawnPlayer()
 
     p->addComponent<CAnimation>(m_game->assets().getAnimation("StandDown"), true);
     p->addComponent<CTransform>(Vec2(m_playerConfig.X, m_playerConfig.Y));
-    p->addComponent<CBoundingBox>(Vec2(m_playerConfig.CX, m_playerConfig.CY));
+    p->addComponent<CBoundingBox>(Vec2(m_playerConfig.CX, m_playerConfig.CY), false, false);
     p->addComponent<CHealth>(m_playerConfig.HEALTH);
     p->addComponent<CInput>();
     p->addComponent<CState>();
@@ -185,7 +186,7 @@ void Scene_Xelda::spawnWeapon()
     w->addComponent<CTransform>(weaponPos);
     w->getComponent<CTransform>().scale = weaponScale;
 
-    w->addComponent<CBoundingBox>(w->getComponent<CAnimation>().animation.getSize());
+    w->addComponent<CBoundingBox>(w->getComponent<CAnimation>().animation.getSize(), false, false);
     w->addComponent<CDamage>(1);
     w->addComponent<CLifespan>(10, m_currentFrame);
 }
@@ -312,7 +313,54 @@ void Scene_Xelda::sAI()
     {
         if (e->hasComponent<CFollowPlayer>())
         {
-            // TODO
+            auto eTransform = e->getComponent<CTransform>();
+            auto eFollow = e->getComponent<CFollowPlayer>();
+            bool isVisible = true;
+
+            for (auto o : m_entityManager.getEntities())
+            {
+                // Do not check against self
+                if (e == o) { continue; }
+                // Player is not included because does not have blockVision == true
+                if (!(o->getComponent<CBoundingBox>().blockVision)) { continue; }
+
+                // Set initial target to player and use variable for calculations
+                Vec2 target = m_player->getComponent<CTransform>().pos;
+                
+                // Get object (o) line segments
+                auto oBound = o->getComponent<CBoundingBox>();
+                auto oPos = o->getComponent<CTransform>().pos;
+
+                // Calculate 4 vertices of object (o)
+                Vec2 topLeft     = Vec2(oPos.x - oBound.halfSize.x,     oPos.y - oBound.halfSize.y);
+                Vec2 topRight    = Vec2(topLeft.x + oBound.size.x,      topLeft.y);
+                Vec2 bottomRight = Vec2(topRight.x,                     topRight.y + oBound.size.y);
+                Vec2 bottomLeft  = Vec2(bottomRight.x - oBound.size.x,  bottomRight.y);
+
+                // Check if line between entity and player is obstructed by object
+                     if (Physics::lineIntersect(target, eTransform.pos, topLeft, topRight).result == true)      { isVisible = false; }
+                else if (Physics::lineIntersect(target, eTransform.pos, topRight, bottomRight).result == true)  { isVisible = false; }
+                else if (Physics::lineIntersect(target, eTransform.pos, bottomRight, bottomLeft).result == true){ isVisible = false; }
+                else if (Physics::lineIntersect(target, eTransform.pos, bottomLeft, topLeft).result == true)    { isVisible = false; }
+
+                // If no intersections, go to home
+                if (!isVisible)
+                {
+                    target = eFollow.home;
+                }
+
+                Vec2 direction = target - eTransform.pos;
+                direction.normalize();
+                if (eTransform.pos.dist(target) > 5)
+                {
+                    e->getComponent<CTransform>().velocity.x = direction.x * eFollow.speed; 
+                    e->getComponent<CTransform>().velocity.y = direction.y * eFollow.speed;
+                }
+                else
+                {
+                    e->getComponent<CTransform>().velocity = Vec2(0,0);
+                }
+            }
         }
         else if (e->hasComponent<CPatrol>())
         {
@@ -659,6 +707,32 @@ void Scene_Xelda::sRender()
                     circle.setFillColor(sf::Color::Black);
                     m_game->window().draw(circle);
                 }
+            }
+
+            // Draw home point for enemies that follow player
+            if (e->hasComponent<CFollowPlayer>())
+            {
+                auto p = e->getComponent<CFollowPlayer>().home;
+
+                sf::CircleShape circle = sf::CircleShape(5);
+                circle.setPosition(sf::Vector2f(p.x, p.y));
+                circle.setFillColor(sf::Color::Blue);
+                m_game->window().draw(circle);
+            }
+
+            // Draw line connecting enemies and player
+            if (e->tag() == "enemy")
+            {
+                auto ePos = e->getComponent<CTransform>().pos;
+                auto pPos = m_player->getComponent<CTransform>().pos;
+
+                sf::Vertex line[2];
+                line[0].position = sf::Vector2f(pPos.x, pPos.y);
+                line[0].color  = sf::Color::Black;
+                line[1].position = sf::Vector2f(ePos.x, ePos.y);
+                line[1].color = sf::Color::Black;
+
+                m_game->window().draw(line, 2, sf::Lines);
             }
         }
     }

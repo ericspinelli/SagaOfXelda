@@ -51,7 +51,7 @@ public:
         : size(s), halfSize(s.x/2.0f, s.y/2.0f)
         {}
     CBoundingBox(const Vec2& s, const bool bm, const bool bv)
-        : size(s), halfSize(s.x/2.0f, s.y/2.0f), blockMove(bm), blockVision(blockVision)
+        : size(s), halfSize(s.x/2.0f, s.y/2.0f), blockMove(bm), blockVision(bv)
         {}
 };
 

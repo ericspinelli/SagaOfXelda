@@ -39,3 +39,33 @@ bool Physics::isCollision(Vec2 overlap)
 {
     return ((overlap.x > 0) && (overlap.y > 0));
 }
+
+float Physics::crossProduct(Vec2 a, Vec2 b)
+{
+    return ((a.x * b.y) - (a.y * b.x));
+}
+
+Intersect Physics::lineIntersect(const Vec2 a, const Vec2 b, const Vec2 c, const Vec2 d)
+{
+    Vec2 r    = (b - a);
+    Vec2 s    = (d - c);
+    Vec2 cma  = (c - a);
+    float rxs = crossProduct(r, s);    
+    float t   = (crossProduct(cma, s) / rxs);
+    float u   = (crossProduct(cma, r) / rxs);
+    
+    Intersect output;
+    if (t >= 0 && t <= 1 && u >= 0 && u <=1)
+    {
+        output.result = true;
+        output.pos = Vec2(a.x + (t * r.x), a.y + (t * r.y));
+    }
+    else
+    {
+        output.result = false;
+        output.pos = Vec2(0,0);
+    }
+    return output;
+
+    //return { true, Vec2(0,0) };
+}
