@@ -118,6 +118,12 @@ void Scene_Xelda::loadLevel(const std::string& filename)
             Vec2 pos = getPosition(roomX, roomY, gridX, gridY, enemy);
             std::cout << animName << " @ " << pos.x << "," << pos.y << std::endl;
         }
+
+        if (temp == "Drop")
+        {
+            fin >> temp;
+            m_dropVec.push_back(temp);
+        }
     }
 }
 
@@ -189,6 +195,26 @@ void Scene_Xelda::spawnWeapon()
     w->addComponent<CBoundingBox>(w->getComponent<CAnimation>().animation.getSize(), false, false);
     w->addComponent<CDamage>(1);
     w->addComponent<CLifespan>(10, m_currentFrame);
+}
+
+void Scene_Xelda::spawnDrop(std::shared_ptr<Entity> source)
+{
+    if (m_dropVec.size())
+    {
+        srand(time(NULL));
+        int itemIndex = (rand() % m_dropVec.size() + 1);                // Add chance of no drop
+        
+        if (!(itemIndex == m_dropVec.size()))                           // If index == size, no drop
+        {
+            auto sourcePos = source->getComponent<CTransform>().pos;
+
+            auto item = m_entityManager.addEntity("item");
+            item->addComponent<CAnimation>(m_game->assets().getAnimation(m_dropVec[itemIndex]), true);
+            item->addComponent<CBoundingBox>(item->getComponent<CAnimation>().animation.getSize(), false, false);
+            item->addComponent<CTransform>(Vec2(sourcePos.x, sourcePos.y));
+            item->addComponent<CLifespan>(600, m_currentFrame);
+        }
+    }
 }
 
 void Scene_Xelda::update()
@@ -311,6 +337,7 @@ void Scene_Xelda::sAI()
 {
     for (auto e : m_entityManager.getEntities())
     {
+        // FOLLOW PLAYER AI
         if (e->hasComponent<CFollowPlayer>())
         {
             auto eTransform = e->getComponent<CTransform>();
@@ -349,19 +376,21 @@ void Scene_Xelda::sAI()
                     target = eFollow.home;
                 }
 
+                // Get vector that points to target and scale by speed
                 Vec2 direction = target - eTransform.pos;
                 direction.normalize();
-                if (eTransform.pos.dist(target) > 5)
+                if (eTransform.pos.dist(target) > 5)                    // Use approximate arrival to avoid oscillations
                 {
                     e->getComponent<CTransform>().velocity.x = direction.x * eFollow.speed; 
                     e->getComponent<CTransform>().velocity.y = direction.y * eFollow.speed;
                 }
                 else
                 {
-                    e->getComponent<CTransform>().velocity = Vec2(0,0);
+                    e->getComponent<CTransform>().velocity = Vec2(0,0); // Stop if at target
                 }
             }
         }
+        // PATROL AI
         else if (e->hasComponent<CPatrol>())
         {
             auto& eTransform = e->getComponent<CTransform>();
@@ -461,7 +490,11 @@ void Scene_Xelda::sCollision()
                 eHealth -= weapon->getComponent<CDamage>().damage;
                 weapon->removeComponent<CDamage>();
 
-                if (eHealth <= 0) { enemy->destroy(); }
+                if (eHealth <= 0)
+                { 
+                    spawnDrop(enemy);
+                    enemy->destroy();
+                }
             }
         }
         

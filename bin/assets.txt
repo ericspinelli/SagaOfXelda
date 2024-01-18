@@ -31,6 +31,9 @@ Texture   TexBush       bin/images/tloz/green/tile_bush.png
 Texture   TexBlack      bin/images/tloz/tile_black.png
 Texture   TexTektite    bin/images/tloz/tektite.png
 Texture   TexKnight     bin/images/tloz/knight.png
+Texture   TexRupee      bin/images/tloz/item_rupee.png
+Texture   TexRupeeBlue  bin/images/tloz/item_rupee_blue.png
+Texture   TexHeart      bin/images/tloz/item_heart.png
 Animation Explosion     TexExplode     48    2 
 Animation RunDown       TexRunDown      2   15   
 Animation RunRight      TexRunRight     2   15    
@@ -62,6 +65,9 @@ Animation WaterBL       TexWaterBL      1    0
 Animation WaterBM       TexWaterBM      1    0
 Animation WaterBR       TexWaterBR      1    0
 Animation Bush          TexBush         1    0
+Animation Rupee         TexRupee        1    0
+Animation RupeeBlue     TexRupeeBlue    1    0
+Animation Heart         TexHeart        1    0
 Font      Arial      bin/fonts/arial.ttf
 Font      Mario      bin/fonts/mario.ttf
 Font      Megaman    bin/fonts/megaman.ttf

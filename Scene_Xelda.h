@@ -30,6 +30,7 @@ protected:
     std::string             m_levelPath;
     PlayerConfig            m_playerConfig;
     WeaponConfig            m_weaponConfig;
+    std::vector<std::string> m_dropVec;
     bool                    m_drawTextures = true;
     bool                    m_drawCollision = false;
     bool                    m_drawGrid = false;
@@ -46,6 +47,7 @@ protected:
 
     void spawnPlayer();
     void spawnWeapon();
+    void spawnDrop(std::shared_ptr<Entity> source);
 
     void update();
     void sDoAction(const Action& action);
