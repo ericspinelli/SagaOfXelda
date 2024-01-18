@@ -200,10 +200,10 @@ void Scene_Xelda::spawnWeapon()
 void Scene_Xelda::spawnDrop(std::shared_ptr<Entity> source)
 {
     if (m_dropVec.size())
-    {
+    { 
         srand(time(NULL));
-        int itemIndex = (rand() % m_dropVec.size() + 1);                // Add chance of no drop
-        
+        int itemIndex = (rand() % (m_dropVec.size()+ 1));               // Add chance of no drop
+
         if (!(itemIndex == m_dropVec.size()))                           // If index == size, no drop
         {
             auto sourcePos = source->getComponent<CTransform>().pos;
@@ -212,7 +212,7 @@ void Scene_Xelda::spawnDrop(std::shared_ptr<Entity> source)
             item->addComponent<CAnimation>(m_game->assets().getAnimation(m_dropVec[itemIndex]), true);
             item->addComponent<CBoundingBox>(item->getComponent<CAnimation>().animation.getSize(), false, false);
             item->addComponent<CTransform>(Vec2(sourcePos.x, sourcePos.y));
-            item->addComponent<CLifespan>(600, m_currentFrame);
+            item->addComponent<CLifespan>(600, m_currentFrame);         // 6 seconds on screen before destroying
         }
     }
 }
@@ -313,12 +313,14 @@ void Scene_Xelda::sMovement()
         m_player->getComponent<CTransform>().pos += playerVelocity;
     }
 
+    // Movement for all non-player entities
     for (auto e : m_entityManager.getEntities())
     {
         if (e->tag() == "player") { continue; }
         if (!e->hasComponent<CTransform>()) { continue; }
 
         auto& eTransform = e->getComponent<CTransform>();
+        eTransform.prevPos = eTransform.pos;
         eTransform.pos += eTransform.velocity;
     }
 }
@@ -414,6 +416,81 @@ void Scene_Xelda::sAI()
 
 void Scene_Xelda::sCollision()
 {
+    for (auto e : m_entityManager.getEntities())
+    {
+        if (!e->hasComponent<CBoundingBox>() || e->tag() == "tile") { continue; }
+        
+        for (auto tile : m_entityManager.getEntities("tile"))
+        {
+            auto& eTransform      = e->getComponent<CTransform>();
+            auto  tileTransform   = tile->getComponent<CTransform>();
+
+            Vec2 overlap          = Physics::getOverlap(e, tile);
+            Vec2 previousOverlap  = Physics::getPreviousOverlap(e, tile);
+
+            if (Physics::isCollision(overlap))
+            {
+                if (tile->getComponent<CBoundingBox>().blockMove)
+                {
+                    if (e->tag() == "weapon") { continue; }
+
+                    // Collision from RIGHT
+                    if (previousOverlap.y > 0 && eTransform.prevPos.x > tileTransform.pos.x)
+                    {
+                        eTransform.pos.x += overlap.x;
+                    }
+                    // Collision from LEFT
+                    else if (previousOverlap.y > 0 && eTransform.prevPos.x < tileTransform.pos.x)
+                    {
+                        eTransform.pos.x -= overlap.x;
+                    }
+                    
+                    // Collision from ABOVE
+                    if (previousOverlap.x > 0 && eTransform.prevPos.y < tileTransform.prevPos.y)
+                    {
+                        eTransform.pos.y -= overlap.y;
+                    }
+                    // Collision from BELOW
+                    else if (previousOverlap.x > 0 && eTransform.prevPos.y > tileTransform.prevPos.y)
+                    {
+                        eTransform.pos.y += overlap.y;
+                    }
+                    
+                    eTransform.velocity = Vec2(0,0);
+                }
+            }
+        }
+    
+        for (auto item : m_entityManager.getEntities("item"))
+        {
+            // Prevent items from colliding with themselves
+            if (e->tag() == "item") { continue; }
+            
+            Vec2 overlap = Physics::getOverlap(e, item);
+            if (Physics::isCollision(overlap))
+            {
+                // Players and enemies can heal
+                if (item->getComponent<CAnimation>().animation.getName() == "Heart")
+                {
+                    if (e->tag() == "weapon" || !e->hasComponent<CHealth>()) { continue; }
+
+                    auto eHealth = e->getComponent<CHealth>();
+                    if (eHealth.health != eHealth.maxHealth)
+                    {
+                        e->getComponent<CHealth>().health += 1;
+                        item->destroy();
+                    }
+                }
+                // Only players can pick up rupees, etc
+                else if (e->tag() == "player")
+                {
+                    item->destroy();
+                }
+            }
+        }
+    }
+    
+    /*
     for (auto tile : m_entityManager.getEntities("tile"))
     {
         if (!(tile->hasComponent<CBoundingBox>())) {continue;}
@@ -455,7 +532,7 @@ void Scene_Xelda::sCollision()
             }
         }
     }
-
+*/
     // ENEMY collisions
     for (auto enemy : m_entityManager.getEntities("enemy"))
     {
